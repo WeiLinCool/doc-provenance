@@ -10,7 +10,7 @@ source:
 evidence:
   - path: assets/skills/doc-constraint/scripts/run-gates.ts
   - path: docs-constraint.yaml
-validated_at: 2026-10-18
+validated_at: 2026-10-17
 ---
 
 # Gates
