@@ -1,0 +1,49 @@
+apiVersion: doc-flow/v1
+kind: Workflow
+metadata:
+  name: doc-flow-full
+  version: "1"
+  description: Deterministic documentation pass from setup through verified bilingual docs
+goal:
+  statement: Produce or revise repository documentation that passes every enabled doc gate without weakening a contract
+  inputs:
+    - name: target-repo
+      description: Repository root with docs-constraint.yaml (or one to be initialized)
+      required: true
+    - name: request
+      description: The user's original documentation request, passed through unchanged
+      required: true
+  outputs:
+    - name: verified-docs
+      description: Documents whose gates pass under .agents/skills/doc-constraint/scripts/run-gates.ts
+      required: true
+  success:
+    - Every step invokes only doc-constraint or doc-standard
+    - The final verify step reports all gates passing
+    - No gate was weakened or skipped to make it pass
+orchestration:
+  mode: deterministic
+  entry: setup.resolve
+  steps:
+    - id: setup.resolve
+      action: { type: run_script, script: scripts/doc-entry.mjs, args: ["<target-repo>", "--json"] }
+      next: setup.init
+    - id: setup.init
+      action: { type: invoke_skill, ref: doc-constraint, command: init }
+      next: write.plan
+    - id: write.plan
+      action: { type: invoke_skill, ref: doc-standard, command: classify-and-place }
+      next: write.author
+    - id: write.author
+      action: { type: invoke_skill, ref: doc-standard, command: write }
+      next: write.pair
+    - id: write.pair
+      action: { type: invoke_skill, ref: doc-standard, command: bilingual-pair }
+      next: verify.gates
+    - id: verify.gates
+      action: { type: run_script, script: .agents/skills/doc-constraint/scripts/run-gates.ts }
+      on_success: done
+      on_failure: fix.remediate
+    - id: fix.remediate
+      action: { type: invoke_skill, ref: doc-standard, command: review }
+      next: write.author

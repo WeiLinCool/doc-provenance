@@ -1,0 +1,26 @@
+name: Doc Sync
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - 'docs-constraint.yaml'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - 'docs-constraint.yaml'
+
+jobs:
+  doc-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run doc gates
+        run: node --experimental-strip-types .agents/skills/doc-constraint/scripts/run-gates.ts --config docs-constraint.yaml

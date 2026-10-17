@@ -1,0 +1,22 @@
+{
+  "name": "doc-provenance",
+  "version": "0.1.0",
+  "description": "Provenance and evidence gates for agent-written repository docs: prove every claim is sourced, current, and still true",
+  "type": "module",
+  "bin": {
+    "dprov": "bin/dprov.js"
+  },
+  "files": [
+    "bin",
+    "app",
+    "platform",
+    "assets"
+  ],
+  "scripts": {
+    "test": "node tests/tools/generate-sandbox.mjs",
+    "test:gates": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:gates:fixtures": "node --experimental-strip-types --test assets/skills/doc-constraint/scripts/*.test.ts",
+    "snapshot": "node tests/tools/snapshot-init.mjs"
+  },
+  "license": "MIT"
+}

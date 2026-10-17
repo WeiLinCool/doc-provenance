@@ -1,0 +1,68 @@
+# What `dprov init` produces
+
+The golden tree: the exact structure a fresh installation must produce. Captured
+from a real run, never written by hand. `tests/init.test.ts` asserts against it, so
+an installer change that silently adds, drops, or moves a file fails here first.
+
+Directories end with a slash; every other line is a file. Regenerate after an
+intended change, then review the diff:
+
+```bash
+node tests/tools/snapshot-init.mjs   # rewrites this file
+```
+
+```text
+.agents/
+.agents/notes/
+.agents/notes/README.md
+.agents/notes/archived/
+.agents/notes/archived/AGENTS.md
+.agents/notes/implemented/
+.agents/notes/implemented/AGENTS.md
+.agents/notes/proposed/
+.agents/notes/rejected/
+.agents/skills/
+.agents/skills/doc-constraint/
+.agents/skills/doc-constraint/SKILL.md
+.agents/skills/doc-constraint/references/
+.agents/skills/doc-constraint/references/slop-checklist.md
+.agents/skills/doc-constraint/references/tier-examples.md
+.agents/skills/doc-constraint/scripts/
+.agents/skills/doc-constraint/scripts/agent-note-tree.ts
+.agents/skills/doc-constraint/scripts/archived-agent-notes.ts
+.agents/skills/doc-constraint/scripts/doc-config.ts
+.agents/skills/doc-constraint/scripts/run-gates.ts
+.agents/skills/doc-constraint/scripts/verify-agent-note-classification.ts
+.agents/skills/doc-constraint/scripts/verify-agent-note-format.ts
+.agents/skills/doc-constraint/scripts/verify-archived-agent-notes.ts
+.agents/skills/doc-constraint/scripts/verify-doc-budgets.ts
+.agents/skills/doc-constraint/scripts/verify-doc-headers.test.ts
+.agents/skills/doc-constraint/scripts/verify-doc-headers.ts
+.agents/skills/doc-constraint/scripts/verify-md-links.ts
+.agents/skills/doc-constraint/scripts/verify-translation-pairing.ts
+.agents/skills/doc-flow/
+.agents/skills/doc-flow/SKILL.md
+.agents/skills/doc-flow/reference/
+.agents/skills/doc-flow/reference/scripts.md
+.agents/skills/doc-flow/runtime/
+.agents/skills/doc-flow/runtime/doc-flow.yaml
+.agents/skills/doc-flow/scripts/
+.agents/skills/doc-flow/scripts/doc-entry.mjs
+.agents/skills/doc-standard/
+.agents/skills/doc-standard/SKILL.md
+.agents/skills/doc-standard/references/
+.agents/skills/doc-standard/references/metadata-links-i18n.md
+.agents/skills/doc-standard/references/review.md
+.agents/skills/doc-standard/references/structure-hierarchy.md
+.agents/skills/doc-standard/references/style.md
+.agents/skills/doc-standard/templates/
+.agents/skills/doc-standard/templates/migration-guide.md
+.agents/skills/doc-standard/templates/package-group.md
+.agents/skills/doc-standard/templates/package-library.md
+.agents/skills/doc-standard/templates/package-reference.md
+AGENTS.md
+docs-constraint.yaml
+docs/
+docs/AGENTS.md
+docs/doc-header.md
+```
