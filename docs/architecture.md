@@ -37,11 +37,11 @@ The CLI never contains gate logic. It locates a skill, then either copies it int
 
 `assets/skills/` holds the three bundled skills. They are the runtime, and they are the only source of truth:
 
-| Skill | Job | Files |
+| Skill | Job | Ships |
 |---|---|---|
-| `doc-flow` | Resolve the route: exactly one downstream skill, never edits files | 4 |
-| `doc-standard` | Writing standard: kinds, templates, voice, review | 9 |
-| `doc-constraint` | Mechanical gates: headers, budgets, links, pairing, notes | 23 |
+| `doc-flow` | Resolve the route: exactly one downstream skill, never edits files | the router script and its workflow table |
+| `doc-standard` | Writing standard: kinds, templates, voice, review | references and one template per kind |
+| `doc-constraint` | Mechanical gates: headers, budgets, links, pairing, notes, archive seals | gate scripts, references, and the installer templates |
 
 `doc-constraint` carries the code that decides a verdict: seven gate scripts, a shared config parser (`doc-config.ts`), the note-tree walker, and the runner that dispatches them.
 

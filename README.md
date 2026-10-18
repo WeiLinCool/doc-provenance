@@ -1,5 +1,7 @@
 # doc-provenance
 
+English | [中文](README.zh.md)
+
 > Provenance and evidence gates for agent-written docs — keep a repository's documentation a real asset, not a formality.
 
 ## Why
@@ -18,10 +20,12 @@ So this is not about constraining writing for its own sake. A doc whose claims c
 
 These questions, and the E0–E3 grading, come from *Assessing document accuracy*: the header block in `docs/doc-header.md` is a direct descendant of its metadata example.
 
-## Lineage
+## Acknowledgements
 
+This project builds on work by others; what it takes from each is stated here.
+
+- **[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)** — the doc system this repository's constraint model descends from: skill packaging with a router skill, a writing skill, and a gate skill, each with a narrow job.
 - **[comet](https://github.com/rpamis/comet)** — the workflow shape: a deterministic chain of skills that ends in a mechanical verdict, with no step left to model judgment.
-- **[dsh-doc](https://github.com/deepseek-ai/deepseek-harness)** — the skill packaging: a router skill, a writing skill, and a gate skill, each with a narrow job.
 - ***Assessing document accuracy*** — the measurement: docs are written by agents and reviewed by humans, so docs must carry checkable evidence, freshness, and an explicit reader cost.
 
 doc-provenance's difference: it is not a skill for a single Agent harness. It is a CLI platform that installs the same constraint into any repository; the gates run on dependency-free Node, so the verdict is reproducible in CI.
@@ -100,6 +104,6 @@ node --experimental-strip-types .agents/skills/doc-constraint/scripts/run-gates.
 
 - Zero runtime dependencies; Node type stripping only (Node >= 20.11).
 - Gates are the completion criterion — fix the docs, never the gate.
-- Vendored skills carry no process artifacts (`node_modules/`, lockfiles, installer templates) — `docforge doctor` rejects them.
+- Vendored skills carry no process artifacts (`node_modules/`, lockfiles, installer templates) — `dprov doctor` rejects them.
 - The doc-flow entry script resolves exactly one downstream skill and never edits files.
 - A document never claims more evidence than it has; if no source can be named, it is an E0 draft and says so.

@@ -1,5 +1,7 @@
 # doc-provenance
 
+[English](README.md) | 中文
+
 > 面向 Agent 撰写文档的溯源与证据门禁 —— 让仓库文档保持为真正的资产，而非形式主义的产物。
 
 ## 为什么
@@ -18,10 +20,12 @@
 
 这三个问题以及 E0–E3 分级来自 *文档准确性评估*：`docs/doc-header.md` 中的头部块正是其元数据示例的直接后裔。
 
-## 脉络
+## 致谢
 
+本项目建立在他人工作之上，以下逐项说明各自借鉴了什么。
+
+- **[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)** —— 本仓库约束模型的来源：以路由 skill、写作 skill、门禁 skill 各司其职的方式打包文档体系。
 - **[comet](https://github.com/rpamis/comet)** —— 工作流形态：一条确定性的 skill 链，终点是机械判定的结论，没有任何一步留给模型自由裁量。
-- **[dsh-doc](https://github.com/deepseek-ai/deepseek-harness)** —— skill 打包方式：路由 skill、写作 skill、门禁 skill 各司其职。
 - ***文档准确性评估*** —— 度量方式：docs 由 agent 编写、human 审阅，所以文档必须携带可核验的证据、时效状态，以及明确的读者阅读成本。
 
 doc-provenance 的不同之处：它不是给某一个 Agent-harness 用的 skill，而是把同一套约束安装进任意仓库的 CLI 平台；门禁以零依赖的 Node 运行，因此结论在 CI 中可复现。
@@ -100,6 +104,6 @@ node --experimental-strip-types .agents/skills/doc-constraint/scripts/run-gates.
 
 - 零运行时依赖；只依赖 Node 的类型剥离（Node >= 20.11）。
 - 门禁即完成标准 —— 修文档，永远不要修门禁。
-- 内置的 skill 不携带过程产物（`node_modules/`、锁文件、安装器模板）—— `docforge doctor` 会拒绝它们。
+- 内置的 skill 不携带过程产物（`node_modules/`、锁文件、安装器模板）—— `dprov doctor` 会拒绝它们。
 - doc-flow 入口脚本只解析出一个下游 skill，且从不修改文件。
 - 文档绝不声明超出其证据的结论；若连来源都举不出，它就是 E0 草稿，并如实说明。

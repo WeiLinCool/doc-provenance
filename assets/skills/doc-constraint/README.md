@@ -18,7 +18,6 @@ doc-constraint/
 ├── AGENTS.md                    # Standing orders for agents (budgeted)
 ├── SKILL.md                     # Skill instructions
 ├── README.md
-├── docs-constraint.yaml         # Live configuration (this repository)
 ├── docs/
 │   ├── AGENTS.md                # Documentation standard: tiers, header rules, writing
 │   └── doc-header.md            # Header + evidence format spec (carries its own header)

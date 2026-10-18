@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-17-adopt-doc-constraint.zh.md)
+
 ## Problem
 
 doc-provenance ships its own doc-constraint skill, but the repository it constrains had never been constrained by it: no `docs-constraint.yaml`, no headers, no gates wired into CI. A platform that sells mechanical documentation honesty was itself unverified — the README's claims about E0–E3, freshness, and budgets were readable prose with no gate behind them.

@@ -127,6 +127,10 @@ signatures, language switchers, and recorded hashes. Translated counterparts mus
 the source header verbatim; `verify-doc-headers` rejects a drifted one. Archived
 Agent Notes are excluded (frozen).
 
+After editing either side, re-record the pair with `--write`: it rewrites the sidecar
+of every pair whose two sides are present and structurally identical, and still reports
+the pairs that are not. That is the whole re-record step — no hand-computed hashes.
+
 ### Word budgets
 
 Budgeted documents have `wc -w`-style ceilings enforced by `verify-doc-budgets`:
@@ -158,6 +162,11 @@ crashing.
 `run-gates.ts` dispatches every gate enabled in `docs-constraint.yaml`. Each gate
 script is self-contained and dependency-free.
 
+Every gate derives its repository root from the `--config` it was given — that file's
+directory is the root — never from where its own script happens to sit
+(`loadConfig()` in `scripts/doc-config.ts`). A gate that resolves paths any other way
+can report "nothing to check" against a tree it never opened, which reads as a pass.
+
 ## Workflows
 
 ### Install (`init`)
@@ -180,6 +189,17 @@ one change: re-verify its evidence, bump `validated_at`, set `reviewed_by` and
 
 Runs every enabled gate and reports violations. Nothing is rewritten.
 `--list` on the budget, pairing, and header gates reports state without failing.
+Re-record a pair after editing either side with
+`verify-translation-pairing.ts --write`; it writes only pairs that are structurally
+identical and reports the rest.
+
+### Doctor (`doctor`)
+
+Compares the vendored runtime against this skill, rejects process artifacts, and checks
+that the repository's own `AGENTS.md` still equals `templates/AGENTS.md.template`.
+That last pair has no gate: `AGENTS.md` carries orders rather than claims, so an
+adopted repository can edit it until it disagrees with the orders it hands to every new
+install.
 
 ### CI (`ci`)
 

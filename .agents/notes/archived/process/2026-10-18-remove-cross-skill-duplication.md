@@ -1,6 +1,9 @@
 # Agent Note: Remove cross-skill duplication from doc-constraint
 
 Status: implemented
+Archived: 2026-10-18
+
+English | [中文](2026-10-18-remove-cross-skill-duplication.zh.md)
 
 ## Problem
 

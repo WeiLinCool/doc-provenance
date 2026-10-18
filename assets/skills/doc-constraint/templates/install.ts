@@ -164,8 +164,22 @@ function scaffoldAgentNotes(target: string): void {
         '',
         'Proposals live under proposed/{class}/yyyy-mm-dd-topic.md.',
         'Implemented decisions under implemented/{class}/yyyy-mm-dd-topic.md.',
-        'Archived (frozen) implemented notes under archived/{class}/.',
+        'Archived (frozen) implemented notes under archived/{class}/. Only implemented notes can be archived; a sealed triplet is never edited again.',
         'Rejected under rejected/{class}/.',
+        '',
+        '## The file format',
+        '',
+        '`# Agent Note: <title>`, a blank line, `Status: <lifecycle>`, a blank line, then the',
+        'language switcher, then the body. The body opens with `## Problem` and carries the',
+        'sections the lifecycle requires: `## Decision` and `## Consequences` for an',
+        'implemented note, `## Proposal`, `## Acceptance criteria`, and `## Risks` for a',
+        'proposal, `## Proposal` for a rejected one. Every note ends with',
+        '`## Alternatives considered`; a pre-format note whose alternatives are not',
+        'reconstructible carries the grandfather comment instead. `verify_agent_note_format`',
+        'enforces exactly this, and the classification gate enforces the date-prefixed',
+        'filename and the closed lifecycle/class tree.',
+        '',
+        'An active note is a bilingual triplet: yyyy-mm-dd-topic.md, yyyy-mm-dd-topic.zh.md, and yyyy-mm-dd-topic.i18n.yaml. Both sides carry the switcher below the status line — English pointing at Chinese, Chinese pointing back — and a one-sided edit fails until the pair is re-recorded.',
         '',
       ].join('\n'),
     )
@@ -195,9 +209,25 @@ function scaffoldAgentNotes(target: string): void {
         '',
         'Archived triplets are frozen historical snapshots. Never edit, translate, or delete them.',
         '',
+        'To archive a note, move its complete triplet into archived/{class}/, insert `Archived: YYYY-MM-DD` immediately below the status line in both language files, re-record the sidecar, and seal the new files:',
+        '',
+        '```bash',
+        'node --experimental-strip-types .agents/skills/doc-constraint/scripts/verify-archived-agent-notes.ts --write',
+        '```',
+        '',
+        'Those are the only permitted header changes; the manifest hashes the result, so any later edit is a violation rather than a diff.',
+        '',
       ].join('\n'),
     )
     console.log('Wrote ' + archAgents)
+  }
+
+  // The manifest is the seal itself: an existing seal is never rewritten here, but a
+  // fresh install ships an empty one so the archive gate has a baseline from day one.
+  const manifest = join(root, 'archived', 'manifest.json')
+  if (!existsSync(manifest)) {
+    writeFileSync(manifest, JSON.stringify({ version: 1, files: {} }, null, 2) + '\n')
+    console.log('Wrote ' + manifest)
   }
 }
 

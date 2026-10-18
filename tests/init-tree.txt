@@ -17,6 +17,7 @@ node tests/tools/snapshot-init.mjs   # rewrites this file
 .agents/notes/README.md
 .agents/notes/archived/
 .agents/notes/archived/AGENTS.md
+.agents/notes/archived/manifest.json
 .agents/notes/implemented/
 .agents/notes/implemented/AGENTS.md
 .agents/notes/proposed/

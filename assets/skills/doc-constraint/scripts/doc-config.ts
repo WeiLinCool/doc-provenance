@@ -5,8 +5,8 @@
  * import it here instead of copying it a fourth time.
  */
 
-import { readdirSync, realpathSync, statSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
 
 /** Directories no gate ever walks into. */
 export const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'vendor', '.next', '.cache', 'coverage'])
@@ -234,6 +234,58 @@ export function isExcluded(rel: string, exclusions: readonly string[]): boolean 
     if (pat.includes('*')) return globToRegExp(pat).test(rel)
     return rel === pat || rel.startsWith(pat + '/')
   })
+}
+
+/** A loaded `docs-constraint.yaml` plus the directory every relative path resolves against. */
+export interface LoadedConfig {
+  /** Absolute path of the config file that was read. */
+  path: string
+  /** Directory holding the config; every gate treats it as the repository root. */
+  baseDir: string
+  /** Parsed YAML, or an empty object when the file could not be read. */
+  config: Record<string, unknown>
+}
+
+/**
+ * Read `--config` out of a gate's arguments and load that file.
+ *
+ * Every gate derives the repository root the same way: the directory of the config it
+ * was told to read. Deriving it from a script's own location instead is how
+ * `agent-note-tree.ts` once resolved `.agents/skills/doc-constraint/.agents/notes`
+ * and reported "no tree; nothing to check" while the real tree went unread — a gate
+ * that is silently green is worse than one that fails.
+ *
+ * With no `--config`, the default is `docs-constraint.yaml` in the current directory,
+ * which is how the gates have always behaved when run by hand from a repository root.
+ */
+export function loadConfig(args: readonly string[]): LoadedConfig {
+  const index = args.indexOf('--config')
+  const path = index >= 0 ? resolve(args[index + 1] ?? '') : resolve('docs-constraint.yaml')
+  const baseDir = dirname(path)
+  if (!existsSync(path)) return { path, baseDir, config: {} }
+  try {
+    const parsed = parseYaml(readFileSync(path, 'utf8'))
+    return {
+      path,
+      baseDir,
+      config: typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {},
+    }
+  } catch {
+    return { path, baseDir, config: {} }
+  }
+}
+
+/** Narrow a parsed config value to a record without trusting its shape. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** A string list from config, dropping anything that is not a string. */
+export function stringList(value: unknown, fallback: readonly string[] = []): string[] {
+  if (!Array.isArray(value)) return [...fallback]
+  return value.filter((entry): entry is string => typeof entry === 'string')
 }
 
 /** True when a path is a translated counterpart (foo.zh.md) rather than a source doc. */

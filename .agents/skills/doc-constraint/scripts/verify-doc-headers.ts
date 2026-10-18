@@ -12,9 +12,9 @@
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { globToRegExp, isCounterpart, isExcluded, isMain, parseYaml, resolveGlob, walkFiles } from './doc-config.ts'
+import { globToRegExp, isCounterpart, isExcluded, isMain, isRecord, loadConfig, resolveGlob, stringList, walkFiles } from './doc-config.ts'
 
 /** Evidence levels, weakest first. */
 const LEVELS = ['E0', 'E1', 'E2', 'E3']
@@ -108,17 +108,9 @@ function tick(value: string): string {
   return TICK + value + TICK
 }
 
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function stringList(value: unknown, fallback: string[]): string[] {
-  if (!Array.isArray(value)) return [...fallback]
-  const list = value.filter((item): item is string => typeof item === 'string' && item !== '')
+/** Same as the shared helper, but an empty list falls back: a configured [] still means "unset" here. */
+function listOrFallback(value: unknown, fallback: string[]): string[] {
+  const list = stringList(value, []).filter(item => item !== '')
   return list.length > 0 ? list : [...fallback]
 }
 
@@ -231,15 +223,15 @@ function buildOptions(cfg: Record<string, unknown>): GateOptions {
     }
   }
   return {
-    scopePatterns: stringList(gate.scope_patterns, DEFAULT_SCOPE),
-    exclusions: stringList(gate.exclusions, DEFAULT_EXCLUSIONS),
+    scopePatterns: listOrFallback(gate.scope_patterns, DEFAULT_SCOPE),
+    exclusions: listOrFallback(gate.exclusions, DEFAULT_EXCLUSIONS),
     required: gate.required !== false,
-    allowedTypes: stringList(gate.allowed_types, DEFAULT_TYPES),
+    allowedTypes: listOrFallback(gate.allowed_types, DEFAULT_TYPES),
     minLevel,
     requireReview: gate.require_review !== false,
     checkDrift: gate.check_drift !== false,
     checkTests: gate.check_tests !== false,
-    testGlobs: stringList(gate.test_globs, DEFAULT_TEST_GLOBS),
+    testGlobs: listOrFallback(gate.test_globs, DEFAULT_TEST_GLOBS),
     maxAgeDays: typeof gate.max_age_days === 'number' ? gate.max_age_days : 180,
     strict: gate.strict !== false,
     requireH1: gate.require_h1 !== false,
@@ -610,8 +602,9 @@ function validateCrossDocument(records: Map<string, DocRecord>, all: string[], c
 
 export function main(args: string[]): number {
   const listOnly = args.includes('--list')
-  const configIndex = args.indexOf('--config')
-  const configPath = configIndex >= 0 ? resolve(args[configIndex + 1] ?? '') : resolve('docs-constraint.yaml')
+  const loaded = loadConfig(args)
+  const configPath = loaded.path
+  const baseDir = loaded.baseDir
   const todayIndex = args.indexOf('--today')
   const today = todayIndex >= 0 ? (args[todayIndex + 1] ?? '') : localToday()
   if (!DATE_SHAPE.test(today) || !isRealDate(today)) {
@@ -622,14 +615,7 @@ export function main(args: string[]): number {
     console.error('Configuration not found: ' + configPath)
     return 1
   }
-  const baseDir = dirname(configPath)
-  let cfg: Record<string, unknown>
-  try {
-    cfg = parseYaml(readFileSync(configPath, 'utf8')) as Record<string, unknown>
-  } catch (error) {
-    console.error('verify-doc-headers: cannot read ' + configPath + ': ' + message(error))
-    return 1
-  }
+  const cfg = loaded.config
 
   const options = buildOptions(cfg)
   const context: Context = {

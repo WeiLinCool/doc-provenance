@@ -19,7 +19,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
-import { isMain, parseYaml } from './doc-config.ts'
+import { isMain, loadConfig } from './doc-config.ts'
 
 interface LinkTarget {
   file: string
@@ -134,7 +134,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readExclusions(configPath: string): string[] {
   if (!existsSync(configPath)) return []
   try {
-    const cfg = parseYaml(readFileSync(configPath, 'utf8')) as Record<string, unknown>
+    const cfg = loadConfig(['--config', configPath]).config
     const gateConfig = isRecord(cfg.gate_config) ? cfg.gate_config : {}
     const own = isRecord(gateConfig.verify_md_links) ? gateConfig.verify_md_links : {}
     const list = Array.isArray(own.exclusions) ? own.exclusions : []
@@ -145,9 +145,7 @@ function readExclusions(configPath: string): string[] {
 }
 
 export function main(args: string[]): number {
-  const configIndex = args.indexOf('--config')
-  const configPath = configIndex >= 0 ? resolve(args[configIndex + 1]) : resolve('docs-constraint.yaml')
-  const baseDir = dirname(configPath)
+  const { path: configPath, baseDir } = loadConfig(args)
   const exclusions = readExclusions(configPath)
   const files = walkMarkdown(baseDir, baseDir, [])
   const failures: string[] = []

@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { isMain } from './doc-config.ts'
+import { isMain, loadConfig } from './doc-config.ts'
 
 const IGNORED_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'vendor', '.next', '.cache', 'coverage'])
 
@@ -213,16 +213,14 @@ interface Config { tiers?: Tier[]; gate_config?: GateConfig }
 
 export function main(args: string[]): number {
   const listOnly = args.includes('--list')
-  const configIndex = args.indexOf('--config')
-  const configPath = configIndex >= 0 ? resolve(args[configIndex + 1]) : resolve('docs-constraint.yaml')
+  const { path: configPath, baseDir, config } = loadConfig(args)
 
   if (!existsSync(configPath)) {
     console.error('Configuration not found: ' + configPath)
     return 1
   }
 
-  const baseDir = dirname(configPath)
-  const cfg = parseYaml(readFileSync(configPath, 'utf8')) as Config
+  const cfg = config as Config
   const headroomPercent = cfg.gate_config?.verify_doc_budgets?.headroom_percent ?? 5
   const failOnMissing = cfg.gate_config?.verify_doc_budgets?.fail_on_missing ?? true
 

@@ -51,6 +51,34 @@ function checkVendoredDrift(target: string, problems: string[]): void {
   }
 }
 
+/**
+ * Compare the repository's own AGENTS.md with the template it ships.
+ *
+ * The root orders are both the adopter's copy and the template every new install
+ * receives, so the two drift the moment one is edited alone — and no gate covers
+ * AGENTS.md (it carries orders, not claims). That is the one pair a doc repository
+ * can rewrite until it disagrees with what it hands out.
+ */
+function checkRootAgentsParity(target: string, problems: string[]): void {
+  const local = join(target, 'AGENTS.md')
+  const source = resolveSkillSource('doc-constraint')
+  if (!source) return
+  const template = join(source, 'templates', 'AGENTS.md.template')
+  if (!existsSync(local) || !existsSync(template)) return
+  let expected: string
+  let actual: string
+  try {
+    expected = readFileSync(template, 'utf8')
+    actual = readFileSync(local, 'utf8')
+  } catch {
+    problems.push('cannot compare AGENTS.md with the shipped template')
+    return
+  }
+  if (expected !== actual) {
+    problems.push('AGENTS.md differs from the shipped template — an adopted repository must run the orders it installs elsewhere')
+  }
+}
+
 /** Diagnose a partial or broken doc constraint installation. */
 export function runDoctor(target: string): number {
   console.log('dprov doctor: ' + target)
@@ -81,6 +109,7 @@ export function runDoctor(target: string): number {
     }
     checkVendoredDrift(target, problems)
   }
+  checkRootAgentsParity(target, problems)
   if (problems.length === 0) {
     console.log('  No problems found.')
     return 0

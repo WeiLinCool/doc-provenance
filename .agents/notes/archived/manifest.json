@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "files": {
+    "process/2026-10-18-remove-cross-skill-duplication.i18n.yaml": "sha256:a65f081ad00f2a5b7817c30c5d41210b8b1e7135a4ad53b1e763d86fca0a39b7",
+    "process/2026-10-18-remove-cross-skill-duplication.md": "sha256:04013df06d1326a5d8ddfb5ba7a7a93f331af5150fc20de715b7fbfd11cd0a9f",
+    "process/2026-10-18-remove-cross-skill-duplication.zh.md": "sha256:05774a80cf12a73db614ab7c9f6c58149deeac89c0347aa4ee5b7cbb8d092fc3"
+  }
+}

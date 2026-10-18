@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
@@ -134,3 +134,191 @@ test('a well-formed accepted document passes', () => {
   const result = audit(dir)
   assert.equal(result.status, 0, 'the accepting edge must be traversable:\n' + result.out)
 })
+
+/**
+ * Agent Notes are in pairing scope, so a decision record cannot be English-only.
+ * The glob reaches {lifecycle}/{class}/file.md only: the tree's own instruction
+ * files stay single-language, and a one-sided edit is reported as such.
+ */
+const note = (dir: string): string => {
+  const classDir = join(dir, '.agents', 'notes', 'implemented', 'process')
+  mkdirSync(classDir, { recursive: true })
+  return join(classDir, '2026-10-18-pairing-scope.md')
+}
+
+/** The sidecar hash the pairing gate records: a git blob SHA-1 of the UTF-8 bytes. */
+const hash = (content: string): string => {
+  const bytes = Buffer.from(content, 'utf8')
+  return createHash('sha1').update('blob ' + bytes.byteLength + '\u0000').update(bytes).digest('hex')
+}
+
+const noteText = (title: string, body: string): string =>
+  ['# Agent Note: ' + title, '', 'Status: implemented', '', 'English | [中文](2026-10-18-pairing-scope.zh.md)', '', '## Problem', '', body, '', '## Decision', '', 'Decided.', '', '## Consequences', '', 'Nothing breaks.', '', '## Alternatives considered', '', '- **Do nothing.** Rejected: the gap stays.', ''].join('\n')
+
+test('an Agent Note without a Chinese counterpart is rejected', () => {
+  const dir = installed()
+  writeFileSync(note(dir), noteText('Pairing scope', 'A decision recorded in English only.'))
+  const result = audit(dir)
+  assert.equal(result.status, 1, 'a single-language Agent Note must fail pairing')
+  assert.match(result.out, /missing counterpart/)
+})
+
+test('the notes instruction files are outside the pairing scope', () => {
+  const dir = installed()
+  assert.equal(audit(dir).status, 0, 'README.md and AGENTS.md under .agents/notes must not pair')
+})
+
+test('a complete Agent Note triplet passes and a one-sided edit is reported', () => {
+  const dir = installed()
+  const source = noteText('Pairing scope', 'A decision recorded in both languages.')
+  const counterpart = source
+    .replace('# Agent Note: Pairing scope', '# Agent Note: 配对范围')
+    .replace('A decision recorded in both languages.', '一个用两种语言记录的决策。')
+    .replace('## Problem', '## 问题')
+    .replace('Decided.', '已决定。')
+    .replace('## Decision', '## 决策')
+    .replace('Nothing breaks.', '没有破坏。')
+    .replace('## Consequences', '## 后果')
+    .replace('- **Do nothing.** Rejected: the gap stays.', '- **什么都不做。** 否决：缺口会一直存在。')
+    .replace('## Alternatives considered', '## 考虑过的替代方案')
+  writeFileSync(note(dir), source)
+  writeFileSync(note(dir).replace(/\.md$/, '.zh.md'), counterpart)
+  writeFileSync(note(dir).replace(/\.md$/, '.i18n.yaml'), [
+    '2026-10-18-pairing-scope.md: ' + hash(source),
+    '2026-10-18-pairing-scope.zh.md: ' + hash(counterpart),
+    '',
+  ].join('\n'))
+  assert.equal(audit(dir).status, 0, 'a complete triplet must pass:\n' + audit(dir).out)
+
+  writeFileSync(note(dir), source.replace('A decision recorded in both languages.', 'A decision edited on one side.'))
+  const result = audit(dir)
+  assert.equal(result.status, 1, 'a one-sided edit must be reported')
+  assert.match(result.out, /edited since the pair was recorded/)
+})
+
+/**
+ * The archive gate seals content, so the two ways it can go wrong are letting an
+ * unsealed file in and letting a sealed file change. Both must be red; the empty
+ * archive a fresh install ships must be green.
+ */
+const archivedNote = (dir: string): string => {
+  const classDir = join(dir, '.agents', 'notes', 'archived', 'process')
+  mkdirSync(classDir, { recursive: true })
+  return join(classDir, '2026-10-18-frozen-decision.md')
+}
+
+const seal = (dir: string): { status: number; out: string } => {
+  const r = spawnSync(process.execPath, [
+    join(dir, '.agents', 'skills', 'doc-constraint', 'scripts', 'verify-archived-agent-notes.ts'),
+    '--write',
+    // The runner always names the config; without it a gate falls back to the current
+    // directory and would seal this repository's archive instead of the fixture's.
+    '--config', join(dir, 'docs-constraint.yaml'),
+  ], { encoding: 'utf8' })
+  return { status: r.status ?? 1, out: (r.stdout ?? '') + (r.stderr ?? '') }
+}
+
+const archivedText = (title: string, switcher: string): string =>
+  ['# Agent Note: ' + title, '', 'Status: implemented', 'Archived: 2026-10-18', '', switcher, '', '## Problem', '', 'Frozen.', '', '## Decision', '', 'Decided.', '', '## Consequences', '', 'Nothing breaks.', '', '## Alternatives considered', '', '- **Keep it active.** Rejected: it is done.', ''].join('\n')
+
+test('a fresh install archives nothing and the archive gate is green', () => {
+  const dir = installed()
+  const result = audit(dir)
+  assert.equal(result.status, 0, 'an empty archive must not fail the gate:\n' + result.out)
+})
+
+test('an archived triplet must be sealed before it passes', () => {
+  const dir = installed()
+  const source = archivedText('Frozen decision', 'English | [中文](2026-10-18-frozen-decision.zh.md)')
+  const counterpart = archivedText('已冻结的决策', '[English](2026-10-18-frozen-decision.md) | 中文')
+    .replace('Frozen.', '已冻结。')
+    .replace('## Problem', '## 问题')
+    .replace('Decided.', '已决定。')
+    .replace('## Decision', '## 决策')
+    .replace('Nothing breaks.', '没有破坏。')
+    .replace('## Consequences', '## 后果')
+    .replace('- **Keep it active.** Rejected: it is done.', '- **保持活跃。** 否决：它已经完成。')
+    .replace('## Alternatives considered', '## 考虑过的替代方案')
+  writeFileSync(archivedNote(dir), source)
+  writeFileSync(archivedNote(dir).replace(/\.md$/, '.zh.md'), counterpart)
+  writeFileSync(archivedNote(dir).replace(/\.md$/, '.i18n.yaml'), [
+    '2026-10-18-frozen-decision.md: ' + hash(source),
+    '2026-10-18-frozen-decision.zh.md: ' + hash(counterpart),
+    '',
+  ].join('\n'))
+
+  const unsealed = audit(dir)
+  assert.equal(unsealed.status, 1, 'an unsealed archived artifact must fail')
+  assert.match(unsealed.out, /not sealed in manifest\.json/)
+
+  const sealed = seal(dir)
+  assert.equal(sealed.status, 0, 'sealing must succeed:\n' + sealed.out)
+  const afterSeal = audit(dir)
+  assert.equal(afterSeal.status, 0, 'a sealed archive must pass:\n' + afterSeal.out)
+
+  writeFileSync(archivedNote(dir), source.replace('Frozen.', 'Edited after sealing.'))
+  const tampered = audit(dir)
+  assert.equal(tampered.status, 1, 'editing a sealed artifact must fail')
+  assert.match(tampered.out, /sealed content hash changed/)
+})
+
+/**
+ * Re-recording is the step every paired edit owes. The gate performs it, so it must
+ * never guess: a structurally divergent pair stays a failure even under --write.
+ */
+const record = (dir: string): { status: number; out: string } => {
+  const r = spawnSync(process.execPath, [
+    join(dir, '.agents', 'skills', 'doc-constraint', 'scripts', 'verify-translation-pairing.ts'),
+    '--config', join(dir, 'docs-constraint.yaml'),
+    '--write',
+  ], { encoding: 'utf8' })
+  return { status: r.status ?? 1, out: (r.stdout ?? '') + (r.stderr ?? '') }
+}
+
+test('--write re-records an edited pair instead of requiring hand-made hashes', () => {
+  const dir = installed()
+  writeFileSync(note(dir), noteText('Pairing scope', 'A decision recorded in both languages.'))
+  writeFileSync(note(dir).replace(/\.md$/, '.zh.md'), noteText('配对范围', '一个用两种语言记录的决策。'))
+  const first = record(dir)
+  assert.equal(first.status, 0, 'recording a complete pair must succeed:\n' + first.out)
+  assert.equal(audit(dir).status, 0, 'the recorded pair must pass')
+
+  writeFileSync(note(dir), noteText('Pairing scope', 'A decision recorded in both languages, revised.'))
+  assert.equal(audit(dir).status, 1, 'the edit must be visible before re-recording')
+  assert.equal(record(dir).status, 0, 're-recording must succeed')
+  assert.equal(audit(dir).status, 0, 'the re-recorded pair must pass')
+})
+
+test('--write refuses to record a pair whose structures diverge', () => {
+  const dir = installed()
+  writeFileSync(note(dir), noteText('Pairing scope', 'A decision recorded in both languages.'))
+  writeFileSync(note(dir).replace(/\.md$/, '.zh.md'),
+    noteText('配对范围', '一个用两种语言记录的决策。') + '\n## 额外章节\n\n结构不同。\n')
+  const result = record(dir)
+  assert.equal(result.status, 1, 'a structural mismatch must stay a failure')
+  assert.match(result.out, /structures diverge/)
+})
+
+/**
+ * A gate must read the repository its config names. Deriving the root from the
+ * script's own location is how the note gates once reported "no tree; nothing to
+ * check" while a real tree sat one directory away — a silent pass over nothing.
+ */
+test('note gates read the repository the config names, not their own', () => {
+  const dir = installed()
+  const classDir = join(dir, '.agents', 'notes', 'implemented', 'process')
+  mkdirSync(classDir, { recursive: true })
+  writeFileSync(join(classDir, '2026-10-18-broken.md'), '# not an Agent Note\n')
+
+  const gate = join(dir, '.agents', 'skills', 'doc-constraint', 'scripts', 'verify-agent-note-format.ts')
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types', gate,
+    '--config', join(dir, 'docs-constraint.yaml'),
+  ], { encoding: 'utf8', cwd: REPO })
+  const out = (result.stdout ?? '') + (result.stderr ?? '')
+  assert.equal(result.status, 1, 'the broken note in the named repository must be found:\n' + out)
+  assert.match(out, /2026-10-18-broken\.md/)
+})
+
+
+

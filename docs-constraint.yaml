@@ -46,6 +46,10 @@ i18n:
   scope_patterns:
     - "docs/**/*.md"
     - "README.md"
+    # Decision records are the docs a reader most needs in their own language.
+    # This glob matches {lifecycle}/{class}/file.md only, so the tree's instruction
+    # files (README.md, AGENTS.md) stay single-language like other instructions.
+    - ".agents/notes/*/*/*.md"
   exclusions:
     # Agent instructions - maintained in English only
     - "docs/AGENTS.md"
@@ -67,7 +71,7 @@ gates:
   verify_translation_pairing: true
   verify_agent_note_format: true
   verify_agent_note_classification: true
-  verify_archived_agent_notes: false
+  verify_archived_agent_notes: true
 
 gate_config:
   verify_doc_budgets:

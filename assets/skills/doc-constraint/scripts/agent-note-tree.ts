@@ -29,6 +29,18 @@ function findRepoRoot(): string {
   }
 }
 
+/**
+ * The notes tree that belongs to a given config directory.
+ *
+ * Gates pass the directory of the `docs-constraint.yaml` they were told to read, so
+ * the tree is the one beside that config — the same rule the installer follows when it
+ * creates both. The walk-up above remains only as a fallback for a gate invoked with
+ * no config at all, where there is nothing better to go on.
+ */
+export function agentNoteRootFor(baseDir: string): string {
+  return resolve(baseDir, '.agents', 'notes')
+}
+
 export const agentNoteRoot = resolve(findRepoRoot(), '.agents', 'notes')
 
 /** The closed set of active Agent Note lifecycles (top-level folders under .agents/notes/). */
@@ -61,15 +73,15 @@ export interface AgentNote {
  * plus one error string per violation (unknown lifecycle or class folder, bad
  * depth, or bad filename). Callers treat a non-empty error list as fatal.
  */
-export function walkAgentNoteTree(): { notes: AgentNote[]; errors: string[]; rootExists: boolean } {
+export function walkAgentNoteTree(root: string = agentNoteRoot): { notes: AgentNote[]; errors: string[]; rootExists: boolean } {
   const notes: AgentNote[] = []
   const errors: string[] = []
   // A repository that has not adopted Agent Notes yet has no tree at all; that is
   // not a violation, the gates simply have nothing to check.
-  if (!existsSync(agentNoteRoot)) return { notes, errors, rootExists: false }
+  if (!existsSync(root)) return { notes, errors, rootExists: false }
   // The lifecycle set is closed too: any directory under .agents/notes/ that is not
   // a known lifecycle would otherwise hold Agent Notes invisible to the walk below.
-  for (const entry of readdirSync(agentNoteRoot, { withFileTypes: true })) {
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (entry.name === 'INDEX.md') {
       errors.push('structure: INDEX.md — centralized Agent Note indexes are forbidden; browse the lifecycle/class tree or search the repository')
       continue
@@ -81,11 +93,11 @@ export function walkAgentNoteTree(): { notes: AgentNote[]; errors: string[]; roo
     }
   }
   for (const lifecycle of AGENT_NOTE_LIFECYCLES) {
-    for (const match of globSync(`${lifecycle}/**/*.md`, { cwd: agentNoteRoot }).map(path => path.split(sep).join('/')).sort()) {
+    for (const match of globSync(`${lifecycle}/**/*.md`, { cwd: root }).map(path => path.split(sep).join('/')).sort()) {
       const segs = match.split('/')
       // Allowlisted file directly at the lifecycle root (e.g. implemented/AGENTS.md).
       if (segs.length === 2 && ROOT_ALLOWLIST.has(segs[1] ?? '')) continue
-      // A Chinese counterpart (foo.zh.md, docs/i18n/README.md) is the SAME Agent Note,
+      // A Chinese counterpart (foo.zh.md, docs/gates.md) is the SAME Agent Note,
       // indexed via its English filename; the pairing gate owns its consistency.
       if (match.endsWith('.zh.md')) continue
       const cls = segs[1]

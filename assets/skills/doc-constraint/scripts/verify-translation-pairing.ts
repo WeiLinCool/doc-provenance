@@ -7,12 +7,13 @@
  *
  * Options:
  *   --list         Report pairing state without failing
- *   --write        Record confirmed pairs to sidecar files (not implemented yet)
+ *   --write        Re-record the sidecar of every consistent pair (both sides agree
+ *                  and the structures match); inconsistent pairs are still reported
  *   --config PATH  Path to docs-constraint.yaml
  */
 
 import { createHash } from 'node:crypto'
-import { isMain } from './doc-config.ts'
+import { isMain, loadConfig } from './doc-config.ts'
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, parse as parsePath, resolve, basename, relative } from 'node:path'
 import { execSync } from 'node:child_process'
@@ -333,16 +334,14 @@ interface Config {
 export function main(args: string[]): number {
   const listOnly = args.includes('--list')
   const writeMode = args.includes('--write')
-  const configIndex = args.indexOf('--config')
-  const configPath = configIndex >= 0 ? resolve(args[configIndex + 1]) : resolve('docs-constraint.yaml')
+  const { path: configPath, baseDir, config } = loadConfig(args)
 
   if (!existsSync(configPath)) {
     console.error('Configuration not found: ' + configPath)
     return 1
   }
 
-  const baseDir = dirname(configPath)
-  const cfg = parseYaml(readFileSync(configPath, 'utf8')) as Config
+  const cfg = config as unknown as Config
 
   if (!cfg.i18n?.enabled) {
     console.log('verify-translation-pairing: i18n is disabled in configuration.')
@@ -412,7 +411,14 @@ export function main(args: string[]): number {
     if (key !== null) pairKeys.add(key)
   }
 
-  const pairs: { source: string; counterpart: string; sidecar: string; consistent: boolean }[] = []
+  const pairs: {
+    source: string
+    counterpart: string
+    sidecar: string
+    consistent: boolean
+    /** The counterpart exists and both sides have the same structure. */
+    recordable: boolean
+  }[] = []
   const failures: string[] = []
 
   for (const key of [...pairKeys].sort()) {
@@ -467,7 +473,7 @@ export function main(args: string[]): number {
         structureMatch,
       )
 
-      pairs.push({ source, counterpart, sidecar, consistent })
+      pairs.push({ source, counterpart, sidecar, consistent, recordable: counterpartExists && structureMatch })
 
       if (!counterpartExists) {
         failures.push(source + ': missing counterpart ' + counterpart)
@@ -512,10 +518,51 @@ export function main(args: string[]): number {
     return 0
   }
 
+  // Re-recording is the step every paired edit owes, so the gate performs it rather
+  // than describing it. It never guesses: a pair is written only when both sides are
+  // present and structurally identical, which is exactly the state a human or agent
+  // must reach by propagating the change. Everything else stays a failure.
+  if (writeMode) {
+    let recorded = 0
+    // Only the faults a re-record cannot repair are reported from here: a missing
+    // counterpart or a structural divergence. A missing or stale sidecar is exactly
+    // what this run is writing.
+    const blocking = pairs.filter(pair => !pair.recordable)
+    for (const pair of pairs.filter(entry => entry.recordable)) {
+      const sourcePath = join(baseDir, pair.source)
+      const counterpartPath = join(baseDir, pair.counterpart)
+      if (!existsSync(sourcePath) || !existsSync(counterpartPath)) continue
+      const sourceHash = gitBlobHash(readFileSync(sourcePath, 'utf8'))
+      const counterpartHash = gitBlobHash(readFileSync(counterpartPath, 'utf8'))
+      const structureMatch = structuresMatch(
+        extractStructure(readFileSync(sourcePath, 'utf8')),
+        extractStructure(readFileSync(counterpartPath, 'utf8')),
+      )
+      if (!structureMatch) continue
+      writeFileSync(
+        join(baseDir, pair.sidecar),
+        '# Bilingual pair record; regenerate with the pairing gate, never hand-edit.\n' +
+          basename(pair.source) + ': ' + sourceHash + '\n' +
+          basename(pair.counterpart) + ': ' + counterpartHash + '\n',
+      )
+      recorded++
+    }
+    if (blocking.length > 0) {
+      console.error('verify-translation-pairing failed:\n')
+      for (const pair of blocking) {
+        console.error('  ' + pair.source + ' <-> ' + pair.counterpart + ': cannot record a pair whose structures diverge or whose counterpart is missing')
+      }
+      console.error('\nRe-recorded ' + recorded + ' pair(s); the pairs above still need their text propagated.')
+      return 1
+    }
+    console.log('verify-translation-pairing: re-recorded ' + recorded + ' pair(s).')
+    return 0
+  }
+
   if (failures.length > 0) {
     console.error('verify-translation-pairing failed:\n')
     for (const failure of failures) console.error('  ' + failure)
-    console.error('\nSee docs/i18n/README.md for the pairing contract.')
+    console.error('\nSee docs/gates.md for the pairing contract.')
     return 1
   }
 

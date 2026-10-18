@@ -36,3 +36,7 @@ Each gate is a separate process on purpose: one gate cannot corrupt another's st
 ## Scope and exclusions
 
 Each gate has its own scope. A file excluded from one gate is still checked by the others: translation exclusions, for example, no longer leak into the link gate, because a page excluded from pairing still has links that can rot.
+
+Pairing covers `docs/**/*.md`, `README.md`, and the Agent Notes themselves (`.agents/notes/*/*/*.md`). The notes glob reaches `{lifecycle}/{class}/file.md` only, so the tree's own instructions (`README.md`, `AGENTS.md`) stay single-language like every other instruction file, and the frozen `archived/` tree is excluded by configuration.
+
+The archive gate is the one exception to "gates only read": `--write` appends hashes for newly archived triplets and never touches an existing seal. A fresh installation ships an empty manifest, so an archive with nothing in it passes instead of demanding a seal it has not earned.

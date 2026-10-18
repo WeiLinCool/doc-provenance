@@ -7,7 +7,8 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { agentNoteRoot, walkAgentNoteTree } from './agent-note-tree.ts'
+import { agentNoteRootFor, walkAgentNoteTree } from './agent-note-tree.ts'
+import { loadConfig } from './doc-config.ts'
 
 /** The date these format rules took effect; the grandfather comment is valid only before it. */
 const FORMAT_ADOPTED = '2026-07-05'
@@ -35,7 +36,11 @@ const REQUIRED: Record<string, string[]> = {
 /** Headings banned in `implemented/` — proposal-era spec-speak per the slop checklist. */
 const BANNED_IMPLEMENTED = /^## (?:Proposal\b|Plan\b|Migration plan\b|Acceptance criteria\b)/i
 
-const { notes, errors, rootExists } = walkAgentNoteTree()
+// The tree is the one beside the config the runner named, so an audit of another
+// repository checks that repository's notes rather than this module's neighbours.
+const { baseDir } = loadConfig(process.argv.slice(2))
+const agentNoteRoot = agentNoteRootFor(baseDir)
+const { notes, errors, rootExists } = walkAgentNoteTree(agentNoteRoot)
 
 if (!rootExists) {
   console.log('verify-agent-note-format: no .agents/notes tree; nothing to check.')
@@ -83,14 +88,14 @@ for (const note of notes) {
   const hasSection = h2s.includes('## Alternatives considered')
   const hasGrandfather = prose.includes(GRANDFATHER)
   if (hasSection && hasGrandfather) fail('carries both `## Alternatives considered` and the grandfather comment — drop the comment')
-  if (!hasSection && !hasGrandfather) fail('missing `## Alternatives considered` (a pre-format Agent Note whose alternatives are not reconstructible carries the grandfather comment instead — see .agents/notes/README.md § The file format)')
+  if (!hasSection && !hasGrandfather) fail('missing `## Alternatives considered` (a pre-format Agent Note whose alternatives are not reconstructible carries the grandfather comment instead — see .agents/notes/README.md)')
   if (hasGrandfather && note.date >= FORMAT_ADOPTED) fail(`the grandfather comment is only valid for Agent Notes dated before ${FORMAT_ADOPTED}`)
 
   if (prose.some(line => LEGACY_MARKERS.some(marker => line.includes(marker)))) fail('carries the retired legacy-format debt marker')
 }
 
 if (errors.length === 0) {
-  console.log(`verify-agent-note-format: ${notes.length} Agent Note(s) checked, all conform to .agents/notes/README.md § The file format.`)
+  console.log(`verify-agent-note-format: ${notes.length} Agent Note(s) checked, all conform to .agents/notes/README.md.`)
   process.exit(0)
 }
 

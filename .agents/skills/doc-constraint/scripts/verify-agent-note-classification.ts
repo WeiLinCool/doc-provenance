@@ -6,9 +6,11 @@
 
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { walkAgentNoteTree } from './agent-note-tree.ts'
+import { agentNoteRootFor, walkAgentNoteTree } from './agent-note-tree.ts'
+import { loadConfig } from './doc-config.ts'
 
-const { notes, errors, rootExists } = walkAgentNoteTree()
+const { baseDir } = loadConfig(process.argv.slice(2))
+const { notes, errors, rootExists } = walkAgentNoteTree(agentNoteRootFor(baseDir))
 
 // Keep the former homes unavailable so new notes cannot silently escape this tree.
 for (const legacyRoot of ['docs/rfc', 'docs/rfcs']) {

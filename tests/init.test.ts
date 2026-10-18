@@ -6,7 +6,7 @@
 
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { generateSandbox, walkFiles } from './tools/generate-sandbox.mjs'
@@ -70,6 +70,20 @@ test('the installed docs link to paths that exist', () => {
 test('every enabled gate passes on the generated sandbox', () => {
   const gates = spawnSync(process.execPath, [CLI, 'audit', SANDBOX], { encoding: 'utf8' })
   assert.equal(gates.status, 0, 'a new installation must start green:\n' + (gates.stdout ?? '') + (gates.stderr ?? ''))
+})
+
+test('doctor reports a root AGENTS.md that drifted from the template', () => {
+  const dir = join(SANDBOX)
+  const local = join(dir, 'AGENTS.md')
+  const original = readFileSync(local, 'utf8')
+  try {
+    writeFileSync(local, original + '\n- standing order added on one side only\n')
+    const doctor = spawnSync(process.execPath, [CLI, 'doctor', dir], { encoding: 'utf8' })
+    assert.equal(doctor.status, 1, 'a one-sided edit must be reported')
+    assert.match((doctor.stdout ?? '') + (doctor.stderr ?? ''), /AGENTS\.md differs from the shipped template/)
+  } finally {
+    writeFileSync(local, original)
+  }
 })
 
 test('doctor reports the sandbox clean', () => {
